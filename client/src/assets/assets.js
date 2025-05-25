@@ -44,7 +44,7 @@ import profile_img3 from './profile_img3.png'
 import lesson_icon from './lesson_icon.svg'
 import vaishnavi_img0 from './vaishnavi_img0.png'
 import logo_img1 from './logo_img1.png'
-
+import coffee from './coffee.png'
 
 
 export const assets = {
@@ -64,6 +64,7 @@ export const assets = {
     star,
     star_blank,
     vaishnavi_img0,
+    coffee,
     profile_img_1,
     profile_img_2,
     profile_img_3,
