@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import { Purchase } from "../models/Purchase.js";
 import Course from "../models/Course.js";
 
-// API Controller Function to Manage clerk user with database
+// Clerk Webhook Handler
 export const clerkWebhooks = async (req, res) => {
     try {
         const whook = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
@@ -26,7 +26,6 @@ export const clerkWebhooks = async (req, res) => {
                     imageUrl: data.image_url,
                 };
                 await User.create(userData);
-                res.json({});
                 break;
             }
 
@@ -37,13 +36,11 @@ export const clerkWebhooks = async (req, res) => {
                     imageUrl: data.image_url,
                 };
                 await User.findByIdAndUpdate(data.id, userData);
-                res.json({});
                 break;
             }
 
             case 'user.deleted': {
                 await User.findByIdAndDelete(data.id);
-                res.json({});
                 break;
             }
 
@@ -51,13 +48,16 @@ export const clerkWebhooks = async (req, res) => {
                 break;
         }
 
+        res.json({ success: true });
+
     } catch (error) {
-        res.json({ success: false, message: error.message });
+        res.status(400).json({ success: false, message: error.message });
     }
 };
 
 const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Stripe Webhook Handler
 export const stripeWebhooks = async (request, response) => {
     const sig = request.headers['stripe-signature'];
 
@@ -66,8 +66,7 @@ export const stripeWebhooks = async (request, response) => {
     try {
         event = Stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
     } catch (err) {
-        response.status(400).send(`Webhook Error: ${err.message}`);
-        return;
+        return response.status(400).send(`Webhook Error: ${err.message}`);
     }
 
     switch (event.type) {
@@ -75,21 +74,32 @@ export const stripeWebhooks = async (request, response) => {
             const paymentIntent = event.data.object;
             const paymentIntentId = paymentIntent.id;
 
-            const session = await stripeInstance.checkout.sessions.list({
+            const sessions = await stripeInstance.checkout.sessions.list({
                 payment_intent: paymentIntentId,
+                limit: 1, // ✅ add this to ensure only latest one is fetched
             });
 
-            const { purchaseId } = session.data[0].metadata;
+            const session = sessions.data[0];
+            if (!session || !session.metadata || !session.metadata.purchaseId) {
+                console.error("Invalid session metadata.");
+                break;
+            }
+
+            const { purchaseId } = session.metadata;
 
             const purchaseData = await Purchase.findById(purchaseId);
+            if (!purchaseData) break;
+
             const userData = await User.findById(purchaseData.userId);
             const courseData = await Course.findById(purchaseData.courseId.toString());
 
-            courseData.enrolledStudents.push(userData._id);
-            await courseData.save();
+            if (userData && courseData) {
+                courseData.enrolledStudents.push(userData._id);
+                await courseData.save();
 
-            userData.enrolledCourses.push(courseData._id);
-            await userData.save();
+                userData.enrolledCourses.push(courseData._id);
+                await userData.save();
+            }
 
             purchaseData.status = "complete";
             await purchaseData.save();
@@ -101,14 +111,24 @@ export const stripeWebhooks = async (request, response) => {
             const paymentIntent = event.data.object;
             const paymentIntentId = paymentIntent.id;
 
-            const session = await stripeInstance.checkout.sessions.list({
+            const sessions = await stripeInstance.checkout.sessions.list({
                 payment_intent: paymentIntentId,
+                limit: 1,
             });
 
-            const { purchaseId } = session.data[0].metadata;
+            const session = sessions.data[0];
+            if (!session || !session.metadata || !session.metadata.purchaseId) {
+                console.error("Invalid session metadata.");
+                break;
+            }
+
+            const { purchaseId } = session.metadata;
             const purchaseData = await Purchase.findById(purchaseId);
-            purchaseData.status = "failed";
-            await purchaseData.save();
+            if (purchaseData) {
+                purchaseData.status = "failed";
+                await purchaseData.save();
+            }
+
             break;
         }
 
