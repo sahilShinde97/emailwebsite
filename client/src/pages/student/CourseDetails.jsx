@@ -14,9 +14,9 @@ const CourseDetails = () => {
   const [isAlreadyEnrolled, setIsAlreadyEnrolled] = useState(false);
   const [playerData, setPlayerData] = useState(null);
   const contentRefs = useRef({});
-
-  const { allCourses,calculateRating,calculateChapterTime,currency,
-    calculateCourseDuration,calculateNoOfLectures,} = useContext(AppContext);
+  const navigate = useNavigate();
+  const { allCourses, calculateRating, calculateChapterTime, currency,
+    calculateCourseDuration, calculateNoOfLectures } = useContext(AppContext);
 
   const fetchCourseData = async () => {
     const findCourse = allCourses.find((course) => course._id === id);
@@ -32,6 +32,78 @@ const CourseDetails = () => {
       { ...prev,
       [index]: !prev[index],
     }));
+  };
+
+  // Add the handlePayment function here, at component level
+  const handlePayment = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/user/purchase-course', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Make sure you have the token
+        },
+        body: JSON.stringify({
+          courseId: courseData._id
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const options = {
+          key: data.key_id,
+          amount: data.amount * 100,
+          currency: "INR",
+          name: data.product_name,
+          description: data.description,
+          order_id: data.order_id,
+          handler: async function (response) {
+            try {
+              const verifyRes = await fetch('http://localhost:5000/api/user/verify-payment', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
+                  receipt: data.receipt
+                })
+              });
+
+              const verifyData = await verifyRes.json();
+
+              if (verifyData.success) {
+                alert('Payment successful!');
+                navigate('/my-enrollments');
+              } else {
+                alert('Payment verification failed');
+              }
+            } catch (error) {
+              console.error('Payment verification failed:', error);
+            }
+          },
+          prefill: {
+            name: data.name,
+            email: data.email,
+            contact: data.contact
+          },
+          theme: {
+            color: "#3399cc"
+          }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      } else {
+        alert(data.message);
+      }
+    } catch (error) {
+      console.error('Error initiating payment:', error);
+    }
   };
 
   return courseData ? (
@@ -207,11 +279,15 @@ const CourseDetails = () => {
                 <img src={assets.lesson_icon} alt="clock icon" />
                 <p>{calculateNoOfLectures(courseData)} lessons</p>
               </div>
+              
+              {/* Add the button here in the JSX */}
+              <button 
+                onClick={handlePayment} 
+                className="md:mt-6 w-full py-3 rounded bg-blue-600 text-white font-medium"
+              >
+                {isAlreadyEnrolled ? "Already Enrolled" : "Enroll Now"}
+              </button>
             </div>
-            <button className="md:mt-6 w-full py-3 rounded bg-blue-600 text-white font-medium">
-              {isAlreadyEnrolled ? "Already Enrolled" : "Enroll Now"}
-            </button>
-
             <div className="pt-6">
               <p className="md:text-xl text-lg font-medium text-gray-800">
                 What,s in the course?
@@ -228,7 +304,7 @@ const CourseDetails = () => {
       </div>
       <Footer />
     </>
-  ) : <Loading />
+  ) : <Loading />;
 };
 
 export default CourseDetails;
