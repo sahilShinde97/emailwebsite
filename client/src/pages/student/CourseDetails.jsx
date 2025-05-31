@@ -6,6 +6,7 @@ import { assets } from "../../assets/assets";
 import humanizeDuration from "humanize-duration";
 import Footer from "../../components/student/Footer";
 import YouTube from "react-youtube";
+import { useNavigate } from 'react-router-dom';
 
 const CourseDetails = () => {
   const { id } = useParams();
@@ -15,6 +16,7 @@ const CourseDetails = () => {
   const [playerData, setPlayerData] = useState(null);
   const contentRefs = useRef({});
   const navigate = useNavigate();
+  const token = localStorage.getItem('token'); // or however you're storing your auth token
   const { allCourses, calculateRating, calculateChapterTime, currency,
     calculateCourseDuration, calculateNoOfLectures } = useContext(AppContext);
 

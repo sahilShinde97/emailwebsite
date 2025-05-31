@@ -3,6 +3,7 @@ import Razorpay from "razorpay";
 import User from "../models/User.js";
 import { Purchase } from "../models/Purchase.js";
 import Course from "../models/Course.js";
+import crypto from 'crypto';
 
 
 
