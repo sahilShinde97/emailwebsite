@@ -31,10 +31,14 @@ app.use('/api/user', express.json(), userRouter)
 app.post('/stripe-webhook', express.raw({ type: 'application/json'}), stripeWebhooks)
 
 // Add this before your routes
+// Remove these duplicate lines
 app.use('/stripe-webhook', express.raw({type: 'application/json'}));
 
 // For all other routes, use JSON parsing
 app.use(express.json());
+
+// Keep only this single webhook route
+app.post('/stripe', express.raw({ type: 'application/json'}), stripeWebhooks)
 
 
 // port
