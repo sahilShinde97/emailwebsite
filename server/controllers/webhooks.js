@@ -59,10 +59,16 @@ const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 export const stripeWebhooks = async (request, response) => {
     const sig = request.headers['stripe-signature'];
-    
+    let event;
+
     try {
-        const event = Stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-        
+        // The request.body is now a Buffer as required by Stripe
+        event = stripeInstance.webhooks.constructEvent(
+            request.body,
+            sig,
+            process.env.STRIPE_WEBHOOK_SECRET
+        );
+
         // Handle the event
         switch (event.type) {
             case 'payment_intent.succeeded': {
@@ -109,10 +115,10 @@ export const stripeWebhooks = async (request, response) => {
                 console.log(`Unhandled event type ${event.type}`);
             }
         }
-        
+
         // Send a response to acknowledge receipt of the event
-        response.json({received: true});
-        
+        response.json({ received: true });
+
     } catch (err) {
         console.error(`Webhook Error: ${err.message}`);
         response.status(400).send(`Webhook Error: ${err.message}`);
