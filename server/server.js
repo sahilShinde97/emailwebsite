@@ -19,26 +19,31 @@ await connectCloudinary();
 
 
 //middleware
+//middleware
 app.use(cors());
-app.use(clerkMiddleware())
+app.use(clerkMiddleware());
+
+// For regular routes, use JSON parsing
+app.use(express.json());
+
+// Stripe webhook route must come after cors but before json parser
+app.post('/stripe-webhook', express.raw({ type: 'application/json'}), stripeWebhooks);
 
 //routes
 app.get("/", (req, res) => res.send("API working"));
-app.post('/clerk', express.json(), clerkWebhooks)
-app.use('/api/educator',express.json(), educatorRouter)
-app.use("/api/course", express.json(), courseRouter)
-app.use('/api/user', express.json(), userRouter)
+app.post('/clerk', clerkWebhooks);
+app.use('/api/educator', educatorRouter);
+app.use("/api/course", courseRouter);
+app.use('/api/user', userRouter);
 app.post('/stripe-webhook', express.raw({ type: 'application/json'}), stripeWebhooks)
 
 // Add this before your routes
-// Remove these duplicate lines
+// Remove these lines as they're duplicates
 app.use('/stripe-webhook', express.raw({type: 'application/json'}));
-
-// For all other routes, use JSON parsing
-app.use(express.json());
-
-// Keep only this single webhook route
 app.post('/stripe', express.raw({ type: 'application/json'}), stripeWebhooks)
+
+// Keep only this one webhook route
+app.post('/stripe-webhook', express.raw({ type: 'application/json'}), stripeWebhooks)
 
 
 // port
