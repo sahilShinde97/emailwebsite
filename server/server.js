@@ -9,7 +9,6 @@ import connectCloudinary from "./configs/cloudinary.js";
 import courseRouter from "./routes/courseRoute.js";
 import userRouter from "./routes/userRoutes.js";
 
-
 // initialize express
 const app = express();
 
@@ -17,17 +16,15 @@ const app = express();
 await connectDB();
 await connectCloudinary();
 
-
-//middleware
-//middleware
+// Basic middleware
 app.use(cors());
 app.use(clerkMiddleware());
 
-// For regular routes, use JSON parsing
-app.use(express.json());
+// Stripe webhook route with raw body parser
+app.post('/stripe-webhook', express.raw({ type: '*/*' }), stripeWebhooks);
 
-// Stripe webhook route must come after cors but before json parser
-app.post('/stripe-webhook', express.raw({ type: 'application/json'}), stripeWebhooks);
+// For all other routes, use JSON parsing
+app.use(express.json());
 
 //routes
 app.get("/", (req, res) => res.send("API working"));
@@ -35,26 +32,6 @@ app.post('/clerk', clerkWebhooks);
 app.use('/api/educator', educatorRouter);
 app.use("/api/course", courseRouter);
 app.use('/api/user', userRouter);
-app.post('/stripe-webhook', express.raw({ type: 'application/json'}), stripeWebhooks)
-
-// Remove all existing webhook routes and middleware configurations
-
-// Place this at the top of your routes, BEFORE express.json()
-app.post('/stripe', express.raw({ type: 'application/json' }), stripeWebhooks);
-
-// Then place the general middleware
-app.use(express.json());
-app.use(cors());
-app.use(clerkMiddleware());
-
-// Your other routes go here
-app.get("/", (req, res) => res.send("API working"));
-app.post('/clerk', clerkWebhooks);
-app.use('/api/educator', educatorRouter);
-app.use("/api/course", courseRouter);
-app.use('/api/user', userRouter);
-app.post('/stripe-webhook', express.raw({ type: 'application/json'}), stripeWebhooks)
-
 
 // port
 const PORT = process.env.PORT || 5000;
